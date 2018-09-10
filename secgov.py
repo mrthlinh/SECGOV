@@ -9,7 +9,7 @@ Created on Wed Sep  5 19:49:09 2018
 from selenium import webdriver
 import pandas as pd
 import numpy as np
-
+import re
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait 
 from selenium.webdriver.support import expected_conditions as EC
@@ -41,6 +41,12 @@ def log(string,end="\n",level=0):
     print(tab+string,end=end)
     
 file_log = open("log/log.txt","w")
+#print("========================= Read list of words ===================================")
+listofword = open("listofword.txt","r")
+criteria = []
+for line in listofword:
+    criteria.append(line.split("\n")[0])
+listofword.close()   
 
 #print("========================= Main Program ===================================")
 log("Open Bot Browser")
@@ -66,8 +72,8 @@ cik_list = data['CIK Number'].unique()
 data['Filing Date'] = data['Filing Date'].apply(format_date)
 data['Period End date'] = data['Period End date'].apply(format_date)
 
-criteria = ["promotion", "resign", "resignation", "retire", "retirement", "has retired", "will retire"]
-columns = criteria + [ "combination", "document link"]
+exact_match = ["exact "+word for word in criteria]
+columns = exact_match + criteria + [ "combination", "document link"]
 records = []
 
 # Iterate
@@ -150,14 +156,17 @@ for cik in cik_list:
         log("Done")
         doc_url = driver.current_url 
         text_html = driver.page_source.lower()
-        record = [text_html.count(word) for word in criteria]
         
-        np_temp = np.array(record)
+        record_exact = [sum(1 for _ in re.finditer(r'\b%s\b' % re.escape(word), text_html)) for word in criteria]
+        
+        record_contain = [text_html.count(word) for word in criteria]
+        
+        np_temp = np.array(record_exact)
         combination = int((np_temp == 0).any())
         
-        log("Word Count: "+str(record),level=2)
+        log("Word Count Exactly: "+str(record_exact),level=2)
         
-        record = record + [combination,doc_url]
+        record = record_exact + record_contain + [combination,doc_url]
         records.append(record)
         
         
@@ -178,6 +187,6 @@ for cik in cik_list:
 df_temp = pd.DataFrame.from_records(records,columns=columns)
 df_out = pd.concat([data,df_temp],axis=1)
 df_out.to_csv("result.csv",index=False,encoding='utf-8')
-log("Export data")
+log("Export data to result.csv")
 file_log.close()        
-    
+
