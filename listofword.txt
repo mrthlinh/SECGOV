@@ -1,0 +1,7 @@
+promotion
+resign
+resignation
+retire
+retirement
+has retired
+will retire
