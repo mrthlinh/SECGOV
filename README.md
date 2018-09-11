@@ -2,10 +2,12 @@
 
 ## Software Installation:
   1. Install Python >= 3.4:
+
     - https://www.python.org/getit/, double click to execute the installer
     - Select __"Add Python to PATH"__ then __Install Now__
     - Hit "Next" or "Ok" to finish installation.
   2. Firefox Driver:
+
     - Download FireFox Browser https://www.mozilla.org/en-US/firefox/new/ then install FireFox.
     - Unzip folder of geckodriver
     - Now we need to add GeckoDriver to PATH of window
@@ -13,7 +15,9 @@
     - Then in __System Variables__, find __Path__ then Double-click to edit. If you are using Window XP, type ";<Path>" (don't forget the semicolon) to add new Path. For example my directory is at "E:\\SECGOV" so I need to add ";E:\\SECGOV".
     - In window of __Edit environment variable__, press __Browse..__ then choose the path of unzip GeckoDriver.
     - Hit "Enter" to finish procedure.
+
   3. Install wkhtmltopdf:
+  
     - Run wkhtmltox-0.12.5-1.msvc2015-win64.exe
     - Remember Path of program, usually __C:/Program Files/wkhtmltopdf/bin__
     - Add PATH of wkhtmltopdf to __System Variables__ like in second step
