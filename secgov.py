@@ -13,17 +13,10 @@ import re
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait 
 from selenium.webdriver.support import expected_conditions as EC
-#from selenium.webdriver.support.ui import Select
-#from selenium.webdriver.firefox.options import Options
-#from selenium.webdriver.common.action_chains import ActionChains
-#from selenium.webdriver.common.keys import Keys
 import os
-#import shutil 
-#from glob import glob
-#import json
 import datetime
 import traceback
-#import time
+import pdfkit
 
 def makeURL(cik):
     return "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK="+str(cik)+"&type=10-K&dateb=&owner=exclude&count=40"
@@ -70,7 +63,7 @@ cik_list = data['CIK Number'].unique()
 #date = data['Filing Date']
 
 data['Filing Date'] = data['Filing Date'].apply(format_date)
-data['Period End date'] = data['Period End date'].apply(format_date)
+#data['Period End date'] = data['Period End date'].apply(format_date)
 
 exact_match = ["exact "+word for word in criteria]
 columns = exact_match + criteria + [ "combination", "document link"]
@@ -188,5 +181,32 @@ df_temp = pd.DataFrame.from_records(records,columns=columns)
 df_out = pd.concat([data,df_temp],axis=1)
 df_out.to_csv("result.csv",index=False,encoding='utf-8')
 log("Export data to result.csv")
+
+# Download part
+
+log("Download PDF")
+
+# list of companies
+company_name = list(df_out['Company Name'].unique())
+
+for company in company_name:
+    path = "download/"+str(company)
+    
+    # Make new directory
+    if not os.path.exists(path):
+        os.makedirs(path)
+    
+    links = list(df_out[df_out['Company Name'] == company]["document link"])
+    filing_date = df_out[df_out['Company Name'] == company]["Filing Date"]
+    filing_date = [date.replace("-","") for date in filing_date]
+    
+    for i in range(len(links)):
+        link = links[i]
+        date = filing_date[i]
+        filename = path+"/"+date+".pdf"
+        log(filename,level=2)
+        pdfkit.from_url(link, filename)
+
+# END
 file_log.close()        
 
