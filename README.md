@@ -17,6 +17,7 @@
     - Run wkhtmltox-0.12.5-1.msvc2015-win64.exe
     - Remember Path of program, usually __C:/Program Files/wkhtmltopdf/bin__
     - Add PATH of wkhtmltopdf to __System Variables__ like in second step
+
 ## Format Output
 - Columns with "exact": match exactly words in "listofword.txt", lower and upper case are the same. "retirement" is different from "postretirement".
 - Columns without "exact": "postretirement" and "retirement" both count as 1.

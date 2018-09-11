@@ -1,5 +1,5 @@
 Open Bot Browser
-Time: 2018-09-10 05:07:32.653749
+Time: 2018-09-11 16:47:14.323862
 Reading inputs
 Iteration
 	CIK: 12927
@@ -155,4 +155,29 @@ Iteration
 		Word Count Exactly: [0, 0, 0, 1, 3, 0, 0]
 		Back to main page
 		Wait for the table is fully loaded: Done
-Export data
+Export data to result.csv
+Download PDF
+		download/BOEING CO/20110209.pdf
+		download/BOEING CO/20120209.pdf
+		download/BOEING CO/20130211.pdf
+		download/BOEING CO/20140214.pdf
+		download/BOEING CO/20150212.pdf
+		download/BOEING CO/20160210.pdf
+		download/BOEING CO/20170208.pdf
+		download/BOEING CO/20180212.pdf
+		download/MICROSOFT CORP/20100730.pdf
+		download/MICROSOFT CORP/20110728.pdf
+		download/MICROSOFT CORP/20120726.pdf
+		download/MICROSOFT CORP/20130730.pdf
+		download/MICROSOFT CORP/20140731.pdf
+		download/MICROSOFT CORP/20150731.pdf
+		download/MICROSOFT CORP/20160728.pdf
+		download/MICROSOFT CORP/20170802.pdf
+		download/AMAZON.COM INC/20110128.pdf
+		download/AMAZON.COM INC/20120201.pdf
+		download/AMAZON.COM INC/20130130.pdf
+		download/AMAZON.COM INC/20140131.pdf
+		download/AMAZON.COM INC/20150130.pdf
+		download/AMAZON.COM INC/20160129.pdf
+		download/AMAZON.COM INC/20170210.pdf
+		download/AMAZON.COM INC/20180202.pdf
