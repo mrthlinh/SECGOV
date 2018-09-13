@@ -132,12 +132,15 @@ for cik in cik_list:
             exit()
         log("Done")
         
-        # Find Type of documents
-        doc_type = table.find_elements_by_xpath("//td[text()='10-K']")
-        
-#        It is a 10-K/A document
+        # It is a 10-K/A document
+        doc_type = table.find_elements_by_xpath("//td[text()='10-K/A']")
         if (len(doc_type) == 0):
-            doc_type = table.find_elements_by_xpath("//td[text()='10-K/A']")
+            # Find Type of documents
+            doc_type = table.find_elements_by_xpath("//td[text()='10-K']")
+        
+	
+#        if (len(doc_type) == 0):
+#            doc_type = table.find_elements_by_xpath("//td[text()='10-K/A']")
             
         doc_type[-1].find_element_by_xpath("preceding-sibling::*[1]/a").click()
         
