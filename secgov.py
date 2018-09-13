@@ -133,8 +133,13 @@ for cik in cik_list:
         log("Done")
         
         # Find Type of documents
-        doc_type = table.find_elements_by_xpath("//td[text()='10-K']")[-1]
-        doc_type.find_element_by_xpath("preceding-sibling::*[1]/a").click()
+        doc_type = table.find_elements_by_xpath("//td[text()='10-K']")
+        
+#        It is a 10-K/A document
+        if (len(doc_type) == 0):
+            doc_type = table.find_elements_by_xpath("//td[text()='10-K/A']")
+            
+        doc_type[-1].find_element_by_xpath("preceding-sibling::*[1]/a").click()
         
         # Wait for the document fully loaded
         log("Wait for the document fully loaded: ",end='',level=2)
