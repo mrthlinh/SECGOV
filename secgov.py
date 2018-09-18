@@ -16,8 +16,22 @@ from selenium.webdriver.support import expected_conditions as EC
 import os
 import datetime
 import traceback
-import pdfkit
 
+import json
+from glob import glob
+    
+file_log = open("log/log.txt","w")
+all_tmp = glob("incomplete/*.csv")
+tmp_name = "incomplete/"+str(len(all_tmp) + 1) +".csv"
+
+def save_checkpoint(cik,date,index):
+    # Create a check point to result
+    with open("log/error.json", 'w') as f:                    
+        error_dict = {"CIK":str(cik), "date": str(date), "index":str(index)}
+        json.dump(error_dict, f)
+        
+def generateError():
+    return 1/0
 def makeURL(cik):
     return "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK="+str(cik)+"&type=10-K&dateb=&owner=exclude&count=40"
 
@@ -32,8 +46,21 @@ def log(string,end="\n",level=0):
     tab = '\t'*level
     file_log.write(tab+string+end)
     print(tab+string,end=end)
-    
-file_log = open("log/log.txt","w")
+
+index_resume = 0
+log("Try to open resume file")
+try:
+    with open("log/error.json", 'r') as f:
+        error_dict = json.load(f)
+        CIK_resume = int(error_dict.get("CIK"))
+        CIK_date = error_dict.get("date")   
+        index_resume = int(error_dict.get("index"))
+        log("CIK number: "+str(CIK_resume)+" - CIK date: "+CIK_date+"- index: "+str(index_resume))
+except:
+    CIK_resume = None
+    CIK_date = None
+
+
 #print("========================= Read list of words ===================================")
 listofword = open("listofword.txt","r")
 criteria = []
@@ -59,7 +86,7 @@ driver = webdriver.Firefox(fp)
 log("Reading inputs")
 data = pd.read_csv("Compustat.csv")
 
-cik_list = data['CIK Number'].unique()
+cik_list = list(data['CIK Number'].unique())
 #date = data['Filing Date']
 
 data['Filing Date'] = data['Filing Date'].apply(format_date)
@@ -71,7 +98,14 @@ records = []
 
 # Iterate
 log("Iteration")
-for cik in cik_list:
+index_CIK_resume = 0
+flag_resume = 1
+if CIK_resume != None:
+    index_CIK_resume = cik_list.index(CIK_resume)
+
+#save_index = index_CIK_resume
+for cik in cik_list[index_CIK_resume:]:
+    
        
     url = makeURL(cik)
     
@@ -79,7 +113,7 @@ for cik in cik_list:
     log("URL: "+url,level=1)
     
     driver.get(url)
-    date_list = data.loc[data['CIK Number'] == cik,'Filing Date'].values
+    date_list = list(data.loc[data['CIK Number'] == cik,'Filing Date'].values)
     
     # Wait for the table is fully loaded
     log("Wait for the table is fully loaded: ",end='',level=2)
@@ -107,17 +141,33 @@ for cik in cik_list:
 #    
 #    filing_date = table.find_elements_by_css_selector('td:nth-child(4)')
 #    filing_date_text = [element.text for element in filing_date]
-        
-    for date in date_list:
-#        index = filing_date_text.index(date)
-#        this_date = filing_date[index]
-        log("Date: "+date,level=2)
+    index_date_resume = 0
+    
+    
+    if CIK_date != None:
+        index_date_resume = date_list.index(CIK_date)
+        flag_resume = 0
+    CIK_date = None
 
         
-        xpath = "//td[ text()='"+date+"']"
-        this_date = table.find_element_by_xpath(xpath)
-        
-        this_date.find_element_by_xpath("preceding-sibling::*[2]/a[@id='documentsbutton']").click()
+    for date in date_list[index_date_resume:]:
+#        index = filing_date_text.index(date)
+#        this_date = filing_date[index]
+        save_checkpoint(cik,date,index_resume)
+        log("Index: "+str(index_resume)+" Date: "+date,level=2)
+
+        try:
+            xpath = "//td[ text()='"+date+"']"
+            this_date = table.find_element_by_xpath(xpath)
+            
+            this_date.find_element_by_xpath("preceding-sibling::*[2]/a[@id='documentsbutton']").click()
+        except Exception as e:
+            traceback.print_exc(file=file_log)
+            log("Error: Not find this date",level=1)
+            record = [None for i in range(16)]
+            records.append(record)
+            index_resume += 1
+            break
         
         # Wait for elements to display
         log("Wait for elements to display: ",end='',level=2)
@@ -167,8 +217,15 @@ for cik in cik_list:
         
         log("Word Count Exactly: "+str(record_exact),level=2)
         
-        record = record_exact + record_contain + [combination,doc_url]
+        record = [index_resume] + record_exact + record_contain + [combination,doc_url]
+#        record =  record_exact + record_contain + [combination,doc_url]
+        
         records.append(record)
+        index_resume += 1
+#        df_temp = pd.DataFrame.from_records(records,columns=columns)
+        # save without header
+        df_temp = pd.DataFrame.from_records(records)
+        df_temp.to_csv(tmp_name,index=False,header=None,encoding='utf-8')
         
         
         log("Back to main page",level=2)
@@ -185,35 +242,56 @@ for cik in cik_list:
             exit()
         log("Done")
         
-df_temp = pd.DataFrame.from_records(records,columns=columns)
-df_out = pd.concat([data,df_temp],axis=1)
-df_out.to_csv("result.csv",index=False,encoding='utf-8')
-log("Export data to result.csv")
+        
 
-# Download part
-
-log("Download PDF")
-
-# list of companies
-company_name = list(df_out['Company Name'].unique())
-
-for company in company_name:
-    path = "download/"+str(company)
-    
-    # Make new directory
-    if not os.path.exists(path):
-        os.makedirs(path)
-    
-    links = list(df_out[df_out['Company Name'] == company]["document link"])
-    filing_date = df_out[df_out['Company Name'] == company]["Filing Date"]
-    filing_date = [date.replace("-","") for date in filing_date]
-    
-    for i in range(len(links)):
-        link = links[i]
-        date = filing_date[i]
-        filename = path+"/"+date+".pdf"
-        log(filename,level=2)
-        pdfkit.from_url(link, filename)
+## Finally finish
+#my_df = pd.DataFrame()
+#for file in all_tmp:
+#    tmp_file = pd.read_csv(file,header=None)
+#    my_df = pd.concat([my_df,tmp_file],axis=1)
+#
+## Set index
+#my_df = my_df.set_index(my_df.columns[0])
+#my_df.columns = columns
+##df_temp = pd.DataFrame.from_records(records,columns=columns)
+#df_out = data.join(my_df,how='outer')
+##df_out = pd.concat([data,df_temp],axis=1)
+#df_out.to_csv("result.csv",index=False,encoding='utf-8')
+#log("Export data to result.csv")
+#
+## Delete temp file
+#log("Remove temporary files")
+#all_temp = glob("incomplete/*.csv")
+#for file in all_temp:
+#    os.remove(file)
+#
+#
+## Download part
+#
+#log("Download PDF")
+#
+## list of companies
+#company_name = list(df_out['Company Name'].unique())
+#
+#for company in company_name:
+#    path = "download/"+str(company)
+#    
+#    # Make new directory
+#    if not os.path.exists(path):
+#        os.makedirs(path)
+#    
+#    links = list(df_out[df_out['Company Name'] == company]["document link"])
+#    filing_date = df_out[df_out['Company Name'] == company]["Filing Date"]
+#    filing_date = [date.replace("-","") for date in filing_date]
+#    
+#    for i in range(len(links)):
+#        link = links[i]
+#        if link == None:
+#            break
+#        date = filing_date[i]
+#        filename = path+"/"+date+".pdf"
+#        log(filename,level=2)
+#        pdfkit.from_url(link, filename)
 
 # END
 file_log.close()        
