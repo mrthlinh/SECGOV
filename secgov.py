@@ -154,8 +154,19 @@ def main():
     
             try:
                 xpath = "//td[ text()='"+date+"']"
-                this_date = table.find_element_by_xpath(xpath)
+#                this_date = table.find_element_by_xpath(xpath)
                 
+                this_dates = table.find_elements_by_xpath(xpath)              
+                
+                if (len(this_dates) >= 2):
+                    for k in range(len(this_dates)):
+                        dup_date = this_dates[k]
+                        text = dup_date.find_element_by_xpath("preceding-sibling::*").text
+                        if text in ['10-K','10-K/A']:
+                            this_date = this_dates[k]
+                else:
+                    this_date = this_dates[0]
+                    
                 this_date.find_element_by_xpath("preceding-sibling::*[2]/a[@id='documentsbutton']").click()
             except Exception as e:
                 traceback.print_exc(file=file_log)
@@ -238,24 +249,28 @@ def main():
                 exit()
             log("Done")
         
+    log("Finally, we finish")
+    return 1
 
 
  
 
 if __name__ == "__main__":
-    MAX_RETRY = 20
+    MAX_RETRY = 3
     i = 0
+    status = 0
     while(1):
         try:
             log("Attempt: "+str(i+1))
-            main()
+            status = main()
         except Exception as e:
             i += 1
             log(str(e))
-        if i == MAX_RETRY:
-            log("Reach maximum attempt to retry")
+            if i == MAX_RETRY:
+                log("Reach maximum attempt to retry")
+                break
+        if (status == 1):
             break
-        
     # END
     file_log.close()  
         
