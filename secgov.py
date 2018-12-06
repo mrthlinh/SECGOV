@@ -21,6 +21,7 @@ import json
 from glob import glob
 
 file_log = open("log/log.txt","w")
+#driver = ''
 def log(string,end="\n",level=0):
     tab = '\t'*level
     file_log.write(tab+string+end)
@@ -86,8 +87,13 @@ def main():
     fp.set_preference("browser.download.manager.showWhenStarting",False)
     fp.set_preference("browser.helperApps.neverAsk.saveToDisk","application/pdf")
     fp.set_preference("pdfjs.disabled", True)
-    #
-    driver = webdriver.Firefox(fp)
+    
+    # Linux
+    driver = webdriver.Firefox(fp,executable_path='geckodriver/geckodriver-v0.23.0-linux64/geckodriver')
+    
+    #Window
+#    driver = webdriver.Firefox(fp,executable_path='geckodriver/geckodriver-v0.21.0-win64/geckodriver.exe')
+    
     #driver.get(url)
     
     # Reading inputs
@@ -101,7 +107,7 @@ def main():
     #data['Period End date'] = data['Period End date'].apply(format_date)
     
     exact_match = ["exact "+word for word in criteria]
-    columns = exact_match + criteria + [ "combination", "document link"]
+    columns = ['index'] + exact_match + criteria + [ "combination", "document link"]
     records = []
     
     # Iterate
@@ -125,26 +131,29 @@ def main():
         driver.get(url)
         date_list = list(data.loc[data['CIK Number'] == cik,'Filing Date'].values)
         
+        
         # Wait for the table is fully loaded
         log("Wait for the table is fully loaded: ",end='',level=2)
         try:
-            table = WebDriverWait(driver, 120).until(
+            table = WebDriverWait(driver, 300).until(
                 EC.element_to_be_clickable((By.CLASS_NAME, "tableFile2"))
             )
-        except Exception as e:
+        except:
             log("Failed")
             traceback.print_exc(file=file_log)
-            exit()
+            raise Exception('Time Expire')
+#            exit()
         log("Done")
     
         index_date_resume = 0
         
-        
-        if CIK_date != None:
-            index_date_resume = date_list.index(CIK_date)
-            flag_resume = 0
-        CIK_date = None
-    
+        try:
+            if CIK_date != None:
+                index_date_resume = date_list.index(CIK_date)
+                flag_resume = 0
+            CIK_date = None
+        except:
+            continue
             
         for date in date_list[index_date_resume:]:
     #        index = filing_date_text.index(date)
@@ -168,32 +177,52 @@ def main():
                     this_date = this_dates[0]
                     
                 this_date.find_element_by_xpath("preceding-sibling::*[2]/a[@id='documentsbutton']").click()
-            except Exception as e:
+            except:
                 traceback.print_exc(file=file_log)
                 log("Error: Not find this date",level=1)
-                record = [None for i in range(16)]
+                length = len(columns)
+                record = [None for i in range(length)]
                 records.append(record)
                 index_resume += 1
-                break
+                continue
+#                break
             
             # Wait for elements to display
             log("Wait for elements to display: ",end='',level=2)
             
             try:
-                table = WebDriverWait(driver, 120).until(
+                table = WebDriverWait(driver, 300).until(
                     EC.element_to_be_clickable((By.CLASS_NAME, "tableFile"))
                 )
-            except Exception as e:
+            except:
                 log("Failed")
                 traceback.print_exc(file=file_log)
-                exit()
+                raise Exception('Time Expire')
+#                exit()
             log("Done")
             
+            # XPATH cheatsheet
+#            https://devhints.io/xpath
+            
             # It is a 10-K/A document
-            doc_type = table.find_elements_by_xpath("//td[text()='10-K/A']")
+            doc_type = table.find_elements_by_xpath("//tr/td[4][text()='10-K/A']")
             if (len(doc_type) == 0):
                 # Find Type of documents
-                doc_type = table.find_elements_by_xpath("//td[text()='10-K']")
+#                doc_type = table.find_elements_by_xpath("//td[text()='10-K']")
+#                doc_type = table.find_elements_by_xpath("//td[position()=2]")
+#                doc_type = table.find_elements_by_xpath("//td[2 and text()='10-K']")
+#                doc_type = table.find_elements_by_xpath("//tr/td[4 and text()='10-K']")
+#                
+#                doc_type = table.find_elements_by_xpath("//tr/td[4 and text()='10-K']")
+                
+                doc_type = table.find_elements_by_xpath("//tr/td[4][text()='10-K']")
+#                doc_type = table.find_elements_by_xpath("//tr/td[3]td[text()='10-K']")
+                
+                # Just look at html
+                for d in doc_type:
+                    s = d.find_element_by_xpath("preceding-sibling::*[1]/a").text
+                    if '.pdf' in s:
+                        doc_type.remove(d)
             
     	
     #        if (len(doc_type) == 0):
@@ -204,13 +233,14 @@ def main():
             # Wait for the document fully loaded
             log("Wait for the document fully loaded: ",end='',level=2)
             try:
-                body = WebDriverWait(driver, 120).until(
+                body = WebDriverWait(driver, 300).until(
                     EC.element_to_be_clickable((By.TAG_NAME, "body"))
                 )
-            except Exception as e:
+            except:
                 log("Failed")
                 traceback.print_exc(file=file_log)
-                exit() 
+                raise Exception('Time Expire')
+#                exit() 
             log("Done")
             doc_url = driver.current_url 
             text_html = driver.page_source.lower()
@@ -231,8 +261,9 @@ def main():
             index_resume += 1
     #        df_temp = pd.DataFrame.from_records(records,columns=columns)
             # save without header
-            df_temp = pd.DataFrame.from_records(records)
-            df_temp.to_csv(tmp_name,index=False,header=None,encoding='utf-8')
+            df_temp = pd.DataFrame.from_records(records,columns=columns)
+            df_temp.to_csv(tmp_name,index=False,encoding='utf-8')
+#            df_temp.to_csv(tmp_name,index=False,header=None,encoding='utf-8')
             
             
             log("Back to main page",level=2)
@@ -240,32 +271,69 @@ def main():
             
             log("Wait for the table is fully loaded: ",end='',level=2)
             try:
-                table = WebDriverWait(driver, 120).until(
+                table = WebDriverWait(driver, 150).until(
                     EC.element_to_be_clickable((By.CLASS_NAME, "tableFile2"))
                 )
-            except Exception as e:
+            except:
                 log("Failed")
                 traceback.print_exc(file=file_log)
-                exit()
+                raise Exception('Time Expire')
+#                exit()
             log("Done")
         
     log("Finally, we finish")
+    
+
+    all_tmp = glob("incomplete/*.csv")
+    
+    # Finally finish
+    my_df = pd.DataFrame()
+    for file in all_tmp:
+        print(file)
+        tmp_file = pd.read_csv(file)
+        tmp_file = tmp_file.dropna(how='all',axis=1)
+        tmp_file = tmp_file.dropna(how='all',axis=0)
+        print(tmp_file.shape)
+        my_df = pd.concat([my_df,tmp_file],axis=0)
+    
+    my_df = my_df.drop_duplicates()
+    my_df.columns = columns
+    my_df['index'] = my_df.apply(lambda x: int(x[0]),axis=1)
+    my_df = my_df.sort_values(by=['index'])
+    my_df = my_df.set_index(my_df.columns[0])
+    
+    df_out = data.join(my_df,how='outer')
+    df_out.to_csv("result.csv",index=False,encoding='utf-8')
+    print("Export data to result.csv") 
+    
+    #a = df_out.loc[df_out['iran'].isna(),:]
+    #missing = list(a.index)
+    
+    #my_df_ = my_df.copy()
+    #my_df_ = my_df_.sort_index(axis=1)
+    #
+    #my_df = my_df.sort_index
+    #my_df.columns = columns
+    #df_temp = pd.DataFrame.from_records(records,columns=columns)
+#    df_out = data.join(my_df,how='inner')
+    #df_out = pd.concat([data,df_temp],axis=1)
+  
+
     return 1
 
-
- 
-
 if __name__ == "__main__":
-    MAX_RETRY = 3
+    MAX_RETRY = 100
     i = 0
     status = 0
     while(1):
         try:
             log("Attempt: "+str(i+1))
             status = main()
+            
         except Exception as e:
             i += 1
             log(str(e))
+#            driver.close()
             if i == MAX_RETRY:
                 log("Reach maximum attempt to retry")
                 break
@@ -273,5 +341,6 @@ if __name__ == "__main__":
             break
     # END
     file_log.close()  
-        
+
+   
 
